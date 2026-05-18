@@ -1,5 +1,5 @@
 name: 'Release Tar Save Ccache'
-description: 'Ccache ko compress karke direct release assets mein push karna'
+description: 'Ccache ko compress karke direct ccache-storage release mein push karna'
 
 runs:
   using: 'composite'
@@ -12,10 +12,13 @@ runs:
         echo "🗜️ Packaging Ccache folder..."
         tar -I pigz -cf ccache-release-dump.tar.gz .ccache
         
-        echo "🚀 Uploading Ccache Tarball to Release Storage..."
-        # FIX: GITHUB_TOKEN environment variable ko direct bash execution inline mein inject kiya hai
         export GITHUB_TOKEN="${{ github.token }}"
-        gh release upload toolchain-cache ccache-release-dump.tar.gz --clobber || \
-        echo "⚠️ Release upload failed, make sure toolchain-cache release tag exists!"
+        echo "🚀 Verifying and Uploading Ccache to its own tag..."
+        
+        # 🔥 FIX: Agar 'ccache-storage' tag nahi hai, toh ye khud use banayega
+        gh release view ccache-storage || gh release create ccache-storage --title "AURA Kernel Ccache Storage" --notes "Automated Ccache Delta Storage Logs"
+        
+        # Apne personal tag me upload aur overwrite lock
+        gh release upload ccache-storage ccache-release-dump.tar.gz --clobber
         
         rm -f ccache-release-dump.tar.gz

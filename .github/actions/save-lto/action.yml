@@ -1,19 +1,21 @@
-name: 'Save ThinLTO Cache'
-description: 'Thread lock map dump system for rapid next-run compilation'
-inputs:
-  cache_path:
-    required: true
-  cache_key:
-    required: true
-  cache_bucket:
-    required: true
-  github_token:
-    required: true
+name: 'Release Tar Save ThinLTO'
+description: 'LTO cache ko compress karke direct release assets mein push karna'
+
 runs:
   using: 'composite'
   steps:
-    - name: Dumping current compiled LTO links
-      uses: actions/cache/save@v4
-      with:
-        path: ${{ inputs.cache_path }}
-        key: ${{ inputs.cache_key }}
+    - name: 💾 Save ThinLTO to Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd $HOME
+        echo "🗜️ Packaging ThinLTO folder..."
+        tar -I pigz -cf lto-release-dump.tar.gz .ldcache
+        
+        echo "🚀 Uploading ThinLTO Tarball to Release Storage..."
+        # FIX: GITHUB_TOKEN inline setup fix
+        export GITHUB_TOKEN="${{ github.token }}"
+        gh release upload toolchain-cache lto-release-dump.tar.gz --clobber || \
+        echo "⚠️ LTO Upload skipped!"
+        
+        rm -f lto-release-dump.tar.gz

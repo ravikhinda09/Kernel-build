@@ -1,0 +1,66 @@
+# =========================================================
+# Toolchain Mirror & Release Cache Generator
+# Maintainer : ravikhinda09
+# Purpose    : GitLab se Clang utha kar apni Repo Release mein lock karna
+# =========================================================
+
+name: 📦 Toolchain Cache Generator
+
+on:
+  workflow_dispatch: # Actions tab se manual run karne ke liye
+
+permissions:
+  contents: write
+
+jobs:
+  generate_cache:
+    name: 🔄 Mirror Toolchain to GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout Repo
+        uses: actions/checkout@v6
+
+      - name: 🛠️ Install Archive Tools
+        run: |
+          sudo apt update
+          sudo apt install -y pigz tar git
+
+      - name: 📥 Clone Clang from GitLab
+        run: |
+          set -euo pipefail
+          cd $HOME
+          echo "Cloning original GitLab toolchain sources..."
+          git clone --depth=1 -b thirteen \
+          https://gitlab.com/inferno0230/clang-r487747c.git \
+          clang-r487747c
+
+      - name: 🗜️ Compress Toolchain into Tarball
+        run: |
+          set -euo pipefail
+          cd $HOME
+          echo "Creating high-speed compressed tarball..."
+          tar -I pigz -cf clang-r487747c.tar.gz clang-r487747c
+          
+          # Move archive to workspace path for release action
+          mv clang-r487747c.tar.gz $GITHUB_WORKSPACE/
+
+      - name: 🚀 Upload Tarball to Repository Releases
+        uses: softprops/action-gh-release@v3
+        with:
+          files: clang-r487747c.tar.gz
+          tag_name: toolchain-cache
+          name: "AURA Compiler Toolchain Cache"
+          body: |
+            📦 Automated Prebuilt Compiler Mirror
+            
+            - **Binary Engine:** Clang r487747c (Branch: thirteen)
+            - **Source:** Synced directly from stable GitLab mirror.
+            - **Usage:** Main kernel workflows can pull directly from this tag.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ✅ Process Completed
+        run: echo "Toolchain successfully cached in your repo releases, bhai!"

@@ -103,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "::group::Install Ccache"
-          wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz
+          wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
           tar -xf ccache-4.13.6-linux-x86_64-glibc/ccache /usr/local/bin/
           ccache --version
           echo "::endgroup::"

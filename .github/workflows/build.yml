@@ -103,9 +103,20 @@ jobs:
         run: |
           set -euo pipefail
           echo "::group::Install Ccache"
-          wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
-          tar -xf ccache-4.13.6-linux-x86_64-glibc/ccache /usr/local/bin/
+
+          # 1. Download official asset
+          wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz
+
+          # 2. Extract without absolute path restrictions
+          tar -xf ccache-4.13.6-linux-x86_64-glibc.tar.xz
+
+          # 3. FIX: Wildcard (*) use karke internal folder se file ko direct binaries location par copy karna
+          sudo cp ccache-4.13.6-linux-x86_64-*/ccache /usr/local/bin/
+
+          # 4. Cleanup and Verify
+          rm -rf ccache-4.13.6-linux-x86_64-*
           ccache --version
+
           echo "::endgroup::"
 
       - name: 🚀 Restore Ccache

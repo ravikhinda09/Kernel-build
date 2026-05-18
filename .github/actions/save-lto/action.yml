@@ -1,5 +1,5 @@
 name: 'Release Tar Save ThinLTO'
-description: 'LTO cache ko compress karke direct release assets mein push karna'
+description: 'LTO cache ko compress karke direct lto-storage release mein push karna'
 
 runs:
   using: 'composite'
@@ -12,10 +12,13 @@ runs:
         echo "🗜️ Packaging ThinLTO folder..."
         tar -I pigz -cf lto-release-dump.tar.gz .ldcache
         
-        echo "🚀 Uploading ThinLTO Tarball to Release Storage..."
-        # FIX: GITHUB_TOKEN inline setup fix
         export GITHUB_TOKEN="${{ github.token }}"
-        gh release upload toolchain-cache lto-release-dump.tar.gz --clobber || \
-        echo "⚠️ LTO Upload skipped!"
+        echo "🚀 Verifying and Uploading ThinLTO to its own tag..."
+        
+        # 🔥 FIX: Agar 'lto-storage' tag nahi hai, toh ye khud use banayega
+        gh release view lto-storage || gh release create lto-storage --title "AURA Kernel ThinLTO Storage" --notes "Automated ThinLTO Object Storage Logs"
+        
+        # Apne personal tag me upload aur overwrite lock
+        gh release upload lto-storage lto-release-dump.tar.gz --clobber
         
         rm -f lto-release-dump.tar.gz

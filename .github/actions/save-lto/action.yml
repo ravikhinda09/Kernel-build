@@ -13,12 +13,14 @@ runs:
         tar -I pigz -cf lto-release-dump.tar.gz .ldcache
         
         export GITHUB_TOKEN="${{ github.token }}"
+        REPO_NAME="${{ github.repository }}"
         echo "🚀 Verifying and Uploading ThinLTO to its own tag..."
         
-        # 🔥 FIX: Agar 'lto-storage' tag nahi hai, toh ye khud use banayega
-        gh release view lto-storage || gh release create lto-storage --title "AURA Kernel ThinLTO Storage" --notes "Automated ThinLTO Object Storage Logs"
+        # Checking and auto-creating tag without .git directory restriction
+        gh release view lto-storage --repo "$REPO_NAME" || \
+        gh release create lto-storage --repo "$REPO_NAME" --title "AURA Kernel ThinLTO Storage" --notes "Automated ThinLTO Object Storage Logs"
         
-        # Apne personal tag me upload aur overwrite lock
-        gh release upload lto-storage lto-release-dump.tar.gz --clobber
+        # Uploading asset using remote repo targeting
+        gh release upload lto-storage lto-release-dump.tar.gz --repo "$REPO_NAME" --clobber
         
         rm -f lto-release-dump.tar.gz

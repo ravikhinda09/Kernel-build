@@ -1,0 +1,19 @@
+name: 'Save Ccache'
+description: 'Performance delta tracking sync wrapper for ccache engines'
+inputs:
+  cache_path:
+    required: true
+  cache_key:
+    required: true
+  cache_bucket:
+    required: true
+  github_token:
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Uploading Ccache Core Assets
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ inputs.cache_path }}
+        key: ${{ inputs.cache_key }}

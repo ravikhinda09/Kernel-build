@@ -1,0 +1,371 @@
+# =========================================================
+# OnePlus 13R Kernel Build Workflow (LineageOS Base)
+# Maintainer : ravikhinda09
+# Kernel     : AURA (SM8650)
+# =========================================================
+
+name: OnePlus 13R/ACE5 Kernel Realese
+
+on:
+  workflow_dispatch:
+    inputs:
+      ksu_branch:
+        description: 'KernelSU Branch'
+        required: true
+        default: 'next'
+
+      susfs_commit:
+        description: 'SusFS Commit Hash/Branch'
+        required: true
+        default: 'gki-android14-6.1'
+
+      release_tag:
+        description: 'Release Tag Name (e.g., v1.0.0-r1)'
+        required: true
+        default: 'v1.0.0-r1'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 🛠️ Build OnePlus 13R/ACE5 Kernel (AURA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: 🛠 Install Dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Installing Dependencies"
+          sudo apt update
+          sudo apt install -y \
+          git device-tree-compiler lz4 xz-utils zlib1g-dev \
+          openjdk-17-jdk gcc g++ python3 python-is-python3 \
+          p7zip-full android-sdk-libsparse-utils erofs-utils \
+          default-jdk gnupg flex bison gperf build-essential \
+          zip curl libc6-dev libncurses-dev libx11-dev \
+          libreadline-dev libgl1 libgl1-mesa-dev \
+          make sudo bc grep tofrodos python3-markdown \
+          libxml2-utils xsltproc libtinfo6 repo cpio kmod \
+          openssl libelf-dev pahole libssl-dev \
+          libarchive-tools zstd rsync aria2 pigz --fix-missing ccache
+
+          wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          echo "::endgroup::"
+          
+      - name: ⚡ Setup Clang Toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Setup Clang"
+          mkdir -p $HOME/clang-17
+          cd $HOME/clang-17
+
+          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r487747c.tar.gz"
+          echo "📥 Downloading Official Google Clang r487747c Toolchain..."
+          aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "clang-r487747c.tar.gz" "$URL"
+
+          echo "📦 Extracting Toolchain..."
+          tar -I pigz -xf "clang-r487747c.tar.gz"
+          rm -f "clang-r487747c.tar.gz"
+          echo "$HOME/clang-17/bin" >> $GITHUB_PATH
+          echo "::endgroup::"
+
+      - name: 📥 Clone AnyKernel3
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME
+          git clone --depth=1 https://github.com/huangdihd/AnyKernel3.git AnyKernel3
+
+      - name: ⚡ Install Latest Ccache
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Install Ccache"
+          wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz
+          tar -xf ccache-4.13.6-linux-x86_64-glibc/ccache /usr/local/bin/
+          ccache --version
+          echo "::endgroup::"
+
+      - name: 🚀 Restore Ccache
+        uses: ./.github/actions/restore-cache
+        with:
+          cache_path: ~/.ccache
+          cache_key: oneplus13r-ccache
+          restore_keys: |
+            oneplus13r-
+          cache_bucket: kernel-ccache
+
+      - name: 🧠 Restore ThinLTO Cache
+        uses: ./.github/actions/restore-lto
+        with:
+          cache_path: ~/.ldcache
+          cache_key: oneplus13r-lto-cache
+          restore_keys: |
+            oneplus13r-LTO-
+          cache_bucket: kernel-ccache-lto
+
+      - name: 🔍 Verify Ccache
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Verify Ccache"
+          echo "/usr/lib/ccache" >> $GITHUB_PATH
+          export CCACHE_DIR="$HOME/.ccache"
+          ccache -p
+          ccache -z
+          echo "::endgroup::"
+
+      - name: 🌲 Clone Kernel Source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME
+          git clone --depth=1 -b lineage-23.2 \
+          https://github.com/aosp-for-giulia/android_kernel_oneplus_sm8650 \
+          kernel-source
+
+      - name: 📚 Clone Kernel Modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME
+          git clone --depth=1 -b lineage-23.2 \
+          https://github.com/aosp-for-giulia/android_kernel_oneplus_sm8650-modules.git \
+          vendor
+
+      - name: 🥷 Fetch SusFS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p $HOME/susfs4ksu
+          cd $HOME/susfs4ksu
+          git init -q
+          git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git
+          git fetch --depth 1 origin ${{ github.event.inputs.susfs_commit }}
+          git checkout -q FETCH_HEAD
+
+      - name: ⚙️ Apply Kernel Configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME/kernel-source
+          cat >> arch/arm64/configs/gki_defconfig <<EOF
+          CONFIG_LTO_CLANG_THIN=y
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_MAP=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          EOF
+          echo "✅ Configs Added"
+
+      - name: 🔥 Setup KernelSU Next
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME/kernel-source
+          curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ github.event.inputs.ksu_branch }}
+          git submodule update --init --recursive
+          cd KernelSU-Next/kernel
+          COMMITS_COUNT=$(git rev-list --count HEAD)
+          BASE_VERSION=$([ "$COMMITS_COUNT" -lt 2684 ] && echo 10200 || echo 30000)
+          KSU_VERSION=$((COMMITS_COUNT + BASE_VERSION))
+          sed -i "s/DKSU_VERSION=.*/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          cd ../../
+          patch -p1 < $GITHUB_WORKSPACE/susfs/ksun-4c9737a-susfs-v2.1.0-a14-6.1-ef16cbce.patch
+          echo "✅ KernelSU Next with SusFS Patch successfully integrated!"
+
+      - name: 🩹 Apply SusFS Patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Apply SusFS"
+          SUSFS_FOLDER="$HOME/susfs4ksu"
+          COMMON_KERNEL_FOLDER="$HOME/kernel-source"
+          cp "$SUSFS_FOLDER/kernel_patches/fs/"* "$COMMON_KERNEL_FOLDER/fs/"
+          cp "$SUSFS_FOLDER/kernel_patches/include/linux/"* "$COMMON_KERNEL_FOLDER/include/linux/"
+          cd "$COMMON_KERNEL_FOLDER"
+          sed -i '/#include <linux\/cpufreq_times.h>/a #include <linux\/dma-buf.h>' ./fs/proc/base.c
+          patch -p1 --forward < $SUSFS_FOLDER/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch
+          echo "::endgroup::"
+
+      - name: 🛡️ BBG LSM
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME/kernel-source
+          wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash -s main
+          echo "CONFIG_BBG=y" >> arch/arm64/configs/gki_defconfig
+          sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
+
+      - name: 🗼 BBR Networking
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >> "$HOME/kernel-source/arch/arm64/configs/gki_defconfig" <<EOF
+          CONFIG_TCP_CONG_ADVANCED=y
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_NET_SCH_FQ=y
+          CONFIG_NET_SCH_FQ_CODEL=y
+          EOF
+
+      - name: 🏗 Build Kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME/kernel-source
+          export LDCACHE_DIR="$HOME/.ldcache"
+          echo '#!/bin/bash' > ld-wrapper
+          echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc)' >> ld-wrapper
+          chmod +x ld-wrapper
+
+          export CCACHE_DIR="$HOME/.ccache"
+          export CCACHE_BASEDIR="$(pwd)"
+          export USE_CCACHE=1
+          export CCACHE_COMPRESS=1
+          export CCACHE_MAXSIZE=10G
+
+          export ARCH=arm64
+          export ANDROID_VER="android14"
+          export KBUILD_BUILD_USER="@ravikhinda09"
+          export UNAME="AURA"
+          export KBUILD_BUILD_TIMESTAMP="Tue May 5 22:32:00 CEST 2026"
+
+          export LLVM=1
+          export LLVM_IAS=1
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export LD="$(pwd)/ld-wrapper"
+          export HOSTLD="$(pwd)/ld-wrapper"
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export STRIP=llvm-strip
+          export CC="ccache clang"
+          export CXX="ccache clang++"
+          export HOSTCC="ccache clang"
+          export HOSTCXX="ccache clang++"
+
+          OUT="out"
+          mkdir -p "$OUT"
+
+          # Parallel vendor configurations link route
+          make O="$OUT" gki_defconfig ../vendor/pineapple_GKI.config ../vendor/oplus/pineapple_GKI.config
+          make O="$OUT" olddefconfig
+
+          scripts/config --file "$OUT/.config" --set-str LOCALVERSION "-$ANDROID_VER-$UNAME"
+          scripts/config --file "$OUT/.config" -d LOCALVERSION_AUTO
+          make LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" O="$OUT" -j$(nproc) 2>&1 | tee build.log || exit 1
+
+      - name: 📦 Create Flashable ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd $HOME
+          ZIP_NAME="AURA-KSUN-SUSFS-$(date +%Y%m%d-%H%M).zip"
+          cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
+          cd AnyKernel3
+          zip -r9 "../$ZIP_NAME" * -x .git README.md
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: 🚚 Move Build Artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv $HOME/$ZIP_NAME $GITHUB_WORKSPACE/
+          mv $HOME/kernel-source/build.log $GITHUB_WORKSPACE/
+
+      - name: 🚀 Publish Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ${{ env.ZIP_NAME }}
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: Kernel With KernelSU-Next+SusFS
+          body: |
+            🔥 OnePlus 13R Release Generated.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚀 Telegram Notification (Premium & Clean)
+        shell: bash
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then exit 0; fi
+
+          ZIP_FILE="$GITHUB_WORKSPACE/${{ env.ZIP_NAME }}"
+          
+          MESSAGE=$(cat <<EOF
+          💎 <b>AURA KERNEL RELEASE</b> 💎
+          ====================================
+          
+          🔹 <b>Device:</b> OnePlus 13R / Ace 5 (giulia)
+          🔹 <b>Kernel Version:</b> <code>Linux 6.1.170</code>
+          🔹 <b>Variant:</b> <code>KernelSU-Next + SusFS</code>
+          🔹 <b>Security:</b> <code>BBG LSM Enabled</code>
+          🔹 <b>Networking:</b> <code>BBR TCP Congestion Control</code>
+          
+          ⚙️ <b>BUILD DETAILS:</b>
+          • <b>Filename:</b> <code>${{ env.ZIP_NAME }}</code>
+          • <b>Release Tag:</b> <code>${{ github.event.inputs.release_tag }}</code>
+          • <b>Compiler:</b> <code>Clang r487747c</code>
+          • <b>Maintainer:</b> @ravikhinda09
+          • <b>Date:</b> <code>$(date "+%Y-%m-%d %H:%M")</code>
+          
+          ====================================
+          <i>#AURA #OnePlus13R #Kernel_6_1 #KernelSU_Next #SusFS</i>
+          EOF
+          )
+
+          curl -F chat_id="$TG_CHAT_ID" \
+               -F document=@"$ZIP_FILE" \
+               -F caption="$MESSAGE" \
+               -F parse_mode="HTML" \
+               "https://api.telegram.org/bot${TG_TOKEN}/sendDocument"
+
+      - name: 📄 Upload Build Logs
+        uses: actions/upload-artifact@v7
+        with:
+          name: Build-Log
+          path: build.log
+          retention-days: 7
+
+      - name: 💾 Save Ccache
+        if: always()
+        uses: ./.github/actions/save-cache
+        with:
+          cache_path: ~/.ccache
+          cache_key: oneplus13r-ccache
+          cache_bucket: kernel-ccache
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🧠 Save ThinLTO Cache
+        if: always()
+        uses: ./.github/actions/save-lto
+        with:
+          cache_path: ~/.ldcache
+          cache_key: oneplus13r-lto-cache
+          cache_bucket: kernel-ccache-lto
+          github_token: ${{ secrets.GITHUB_TOKEN }}

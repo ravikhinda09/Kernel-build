@@ -1,0 +1,20 @@
+name: 'Restore Ccache'
+description: 'Standard multi-pool action handler for ccache retrieval'
+inputs:
+  cache_path:
+    required: true
+  cache_key:
+    required: true
+  restore_keys:
+    required: false
+  cache_bucket:
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Pulling Ccache Core Assets
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ inputs.cache_path }}
+        key: ${{ inputs.cache_key }}
+        restore-keys: ${{ inputs.restore_keys }}

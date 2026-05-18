@@ -1,20 +1,25 @@
-name: 'Restore ThinLTO Cache'
-description: 'Incremental multi-thread object mapping optimizer'
-inputs:
-  cache_path:
-    required: true
-  cache_key:
-    required: true
-  restore_keys:
-    required: false
-  cache_bucket:
-    required: true
+name: 'Release Tar Restore ThinLTO'
+description: 'Aria2c se release tarball pull karke ldcache/LTO restore karna'
+
 runs:
   using: 'composite'
   steps:
-    - name: Re-indexing thinLTO objects
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ inputs.cache_path }}
-        key: ${{ inputs.cache_key }}
-        restore-keys: ${{ inputs.restore_keys }}
+    - name: 🧠 Restore ThinLTO Cache from Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p $HOME/.ldcache
+        cd $HOME
+        
+        FILE="lto-release-dump.tar.gz"
+        URL="https://github.com/${{ github.repository }}/releases/download/toolchain-cache/$FILE"
+        
+        echo "📥 Pulling ThinLTO tarball from repo release..."
+        if aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "$FILE" "$URL"; then
+          echo "📦 Extracting LTO objects..."
+          tar -I pigz -xf "$FILE" -C $HOME/
+          rm -f "$FILE"
+          echo "✅ ThinLTO Cache Restored Successfully!"
+        else
+          echo "⚠️ No previous ThinLTO Cache found in Release, starting fresh bhai!"
+        fi

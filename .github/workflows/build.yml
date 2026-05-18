@@ -205,7 +205,7 @@ jobs:
           BASE_VERSION=$([ "$COMMITS_COUNT" -lt 2684 ] && echo 10200 || echo 30000)
           KSU_VERSION=$((COMMITS_COUNT + BASE_VERSION))
           sed -i "s/DKSU_VERSION=.*/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          cd ../../
+          cd ../
           patch -p1 < $GITHUB_WORKSPACE/susfs/ksun-5a4a718-susfs-f7ae19ef-gki-android14-6.1.patch
           echo "✅ KernelSU Next with SusFS Patch successfully integrated!"
 

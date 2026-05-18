@@ -152,7 +152,7 @@ jobs:
           cd $HOME
           git clone --depth=1 -b lineage-23.2 \
           https://github.com/aosp-for-giulia/android_kernel_oneplus_sm8650-modules.git \
-          vendor
+          sm8650-modules
 
       - name: 🥷 Fetch SusFS
         shell: bash

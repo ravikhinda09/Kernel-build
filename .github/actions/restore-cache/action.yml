@@ -12,7 +12,8 @@ runs:
         cd $HOME
         
         FILE="ccache-release-dump.tar.gz"
-        URL="https://github.com/${{ github.repository }}/releases/download/toolchain-cache/$FILE"
+        URL="https://github.com/${{ github.repository }}/releases/download/ccache-storage/$FILE"
+
         
         echo "📥 Pulling ccache tarball from repo release..."
         if aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "$FILE" "$URL"; then

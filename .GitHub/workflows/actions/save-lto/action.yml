@@ -1,0 +1,19 @@
+name: 'Save ThinLTO Cache'
+description: 'Thread lock map dump system for rapid next-run compilation'
+inputs:
+  cache_path:
+    required: true
+  cache_key:
+    required: true
+  cache_bucket:
+    required: true
+  github_token:
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Dumping current compiled LTO links
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ inputs.cache_path }}
+        key: ${{ inputs.cache_key }}

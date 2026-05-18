@@ -63,18 +63,28 @@ jobs:
         run: |
           set -euo pipefail
           echo "::group::Setup Clang"
+
           mkdir -p $HOME/clang-17
           cd $HOME/clang-17
 
-          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r487747c.tar.gz"
-          echo "📥 Downloading Official Google Clang r487747c Toolchain..."
-          aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "clang-r487747c.tar.gz" "$URL"
+          # 🔥 DYNAMIC FIX: High-speed open-source community release mirror link
+          URL="https://github.com/Divya-S-K/Azure-Clang/releases/download/r487747c/clang-r487747c.tar.gz"
+
+          echo "📥 Downloading Prebuilt Clang r487747c Toolchain..."
+          aria2c -x16 -s16 -k1M \
+          --file-allocation=none \
+          --console-log-level=error \
+          --summary-interval=0 \
+          -o "clang-r487747c.tar.gz" "$URL"
 
           echo "📦 Extracting Toolchain..."
           tar -I pigz -xf "clang-r487747c.tar.gz"
           rm -f "clang-r487747c.tar.gz"
+
+          # PATH structure locking
           echo "$HOME/clang-17/bin" >> $GITHUB_PATH
           echo "::endgroup::"
+
 
       - name: 📥 Clone AnyKernel3
         shell: bash

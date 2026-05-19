@@ -1,5 +1,5 @@
 name: 'OnePlus OOS Kernel Source Fetcher'
-description: 'Initializes and parallel syncs official OnePlus OxygenOS kernel platform sources via Google Repo Tool'
+description: 'Initializes and parallel syncs official OnePlus OxygenOS kernel platform sources via Google Repo Tool inside $HOME'
 
 inputs:
   branch:
@@ -19,12 +19,10 @@ runs:
       run: |
         echo "::group::Configuring Repo Engine Core"
         
-        # Git config block required by internal repo synchronization layouts
         git config --global user.name "ravikhinda09"
         git config --global user.email "ravikhinda09@users.noreply.github.com"
         git config --global color.ui false
         
-        # Installing localized standalone repo binaries
         REPO_BIN="/usr/local/bin/repo"
         if [ ! -x "$REPO_BIN" ]; then
           echo "📥 Repo tool binary not found. Injecting from google storage api..."
@@ -34,14 +32,15 @@ runs:
         
         echo "::endgroup::"
 
-    - name: 🚀 Executing Parallel Manifest Sync
+    - name: 🚀 Executing Parallel Manifest Sync inside $HOME
       shell: bash
       run: |
-        echo "::group::Executing Repo Tree Synchronization"
+        echo "::group::Executing Repo Tree Synchronization inside $HOME"
         
-        # Ab koi extra folder creation ya nested cd nahi hai, direct current repo zone use hoga
+        # 🟢 HOME ROUTING LOCK: Direct $HOME par jao aur wahan kernel_platform folder initialize karo
+        cd $HOME
         
-        # 📡 Init phase matching script's logic (Handles URL overrides or direct local manifests)
+        # 📡 Init phase matching script's logic
         if [[ "${{ inputs.manifest }}" == https://* ]]; then
           mkdir -p .repo/manifests
           echo "📥 Fetching dynamic configuration layout from remote url..."
@@ -69,5 +68,9 @@ runs:
           exit 1
         fi
         
-        echo "✅ Source tree successfully built and matched!"
+        echo "🚚 Moving: kernel_platform tree ko main workspace ($GITHUB_WORKSPACE) me copy kar raha hu..."
+        # $HOME se poore downloaded kernel_platform folder ko github workspace ke andar transfer karna
+        cp -r "$HOME/kernel_platform" "$GITHUB_WORKSPACE/" || true
+        
+        echo "✅ Source tree successfully built and matched inside workspace!"
         echo "::endgroup::"

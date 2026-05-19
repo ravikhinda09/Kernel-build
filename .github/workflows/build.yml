@@ -202,9 +202,9 @@ jobs:
           cd "$HOME/kernel-source"
           
           # Check karega, agar mili toh dlt, nahi toh strict error!
-          if ls android/abi_gki_protected_exports_* 1>/dev/null 2>&1; then
+          if ls android/aabi_gki_protected_exports_* 1>/dev/null 2>&1; then
             echo "🔍 ABI Protected exports files mil gayi hain! Inko dlt kar raha hu..."
-            rm -f android/abi_gki_protected_exports_*
+            rm -f android/aabi_gki_protected_exports_*
             echo "✅ ABI Protected files completely saaf ho gayi!"
           else
             echo "❌ ERROR: Android folder me koi ABI Protected exports file NAHI mili!"

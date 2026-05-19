@@ -314,7 +314,7 @@ jobs:
         run: |
           set -euo pipefail
           cd $HOME
-          ZIP_NAME="AURA-KSUN-SUSFS-$(date +%Y%m%d-%H%M).zip"
+          ZIP_NAME="OOS16-KSUN-SUSFS-$(date +%Y%m%d-%H%M).zip"
           cp kernel_platform/common/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           zip -r9 "../$ZIP_NAME" * -x .git README.md

@@ -10,10 +10,6 @@ inputs:
     description: 'Target manifest XML file (e.g., oneplus_ace5_b.xml)'
     required: true
     default: 'oneplus_ace5_b.xml'
-  local_dir:
-    description: 'Output directory name inside workspace'
-    required: false
-    default: 'kernel-source'
 
 runs:
   using: 'composite'
@@ -43,9 +39,7 @@ runs:
       run: |
         echo "::group::Executing Repo Tree Synchronization"
         
-        TARGET_PATH="$GITHUB_WORKSPACE/${{ inputs.local_dir }}"
-        mkdir -p "$TARGET_PATH"
-        cd "$TARGET_PATH"
+        # Ab koi extra folder creation ya nested cd nahi hai, direct current repo zone use hoga
         
         # 📡 Init phase matching script's logic (Handles URL overrides or direct local manifests)
         if [[ "${{ inputs.manifest }}" == https://* ]]; then
@@ -75,5 +69,5 @@ runs:
           exit 1
         fi
         
-        echo "✅ Source tree successfully built and matched inside ${{ inputs.local_dir }}!"
+        echo "✅ Source tree successfully built and matched!"
         echo "::endgroup::"

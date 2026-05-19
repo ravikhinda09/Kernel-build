@@ -193,6 +193,27 @@ jobs:
           EOF
           echo "✅ Configs Added"
 
+      - name: 🛡️ Clean Up ABI Protected Exports
+        shell: bash
+        run: |
+          echo "::group::Clean Up ABI Protected Exports"
+          set -euo pipefail
+          
+          cd "$HOME/kernel-source"
+          
+          # Check karega, agar mili toh dlt, nahi toh strict error!
+          if ls android/abi_gki_protected_exports_* 1>/dev/null 2>&1; then
+            echo "🔍 ABI Protected exports files mil gayi hain! Inko dlt kar raha hu..."
+            rm -f android/abi_gki_protected_exports_*
+            echo "✅ ABI Protected files completely saaf ho gayi!"
+          else
+            echo "❌ ERROR: Android folder me koi ABI Protected exports file NAHI mili!"
+            echo "Pipeline ko strict safety ke liye rokh raha hu..."
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+    
       - name: 🔥 Setup KernelSU Next
         shell: bash
         run: |

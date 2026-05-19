@@ -1,0 +1,48 @@
+name: 'Release Tar Save Ccache'
+description: 'Ccache ko compress karke direct ccache-storage release mein push karna rigid mathematical lines tracking ke sath'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 💾 Save Ccache to Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        export GITHUB_TOKEN="${{ github.token }}"
+        REPO_NAME="${{ github.repository }}"
+        
+        mkdir -p $HOME/.ccache
+        
+        # 🚀 THE BULLETPROOF LOGIC: Core stats lines ke numbers ko sateek tarike se save karna
+        # Isse Hits, Misses, Cacheable aur Uncacheable sab lines bina sequence toote single line me save ho jayengi
+        ccache -s 2>/dev/null | grep -E '(Cacheable calls|Hits|Misses|Uncacheable calls)' | awk -F':' '{print $2}' | tr -d '()%' | awk '{print $1}' | xargs > $HOME/current_stats.txt || true
+        
+        # Standalone Emergency Fallback: Agar kisi pange se file na bane toh basic numbers target lock
+        if [ ! -s $HOME/current_stats.txt ]; then
+          ccache -s 2>/dev/null | grep -E '(cacheable|hits|misses)' | awk '{print $NF}' | xargs > $HOME/current_stats.txt || true
+        fi
+        
+        echo "🔍 Checking for previous cache stats..."
+        if gh release download ccache-storage --repo "$REPO_NAME" --pattern "current_stats.txt" -O $HOME/old_stats.txt 2>/dev/null; then
+          OLD_HASH=$(md5sum $HOME/old_stats.txt | cut -d' ' -f1)
+          NEW_HASH=$(md5sum $HOME/current_stats.txt | cut -d' ' -f1)
+          
+          if [ "$OLD_HASH" = "$NEW_HASH" ]; then
+            echo "✅ Ccache mathematical metrics are exactly identical! Skipping compress and upload to save time. 😎"
+            rm -f $HOME/current_stats.txt $HOME/old_stats.txt
+            exit 0
+          fi
+        fi
+
+        echo "🔄 New Ccache modifications detected! Packaging folder..."
+        cd $HOME
+        tar -I 'pigz -1' -cf ccache-release-dump.tar.gz .ccache
+        
+        echo "🚀 Uploading updated Ccache asset stream..."
+        gh release view ccache-storage --repo "$REPO_NAME" || \
+        gh release create ccache-storage --repo "$REPO_NAME" --title "AURA Kernel Ccache Storage" --notes "Automated Ccache Delta Storage Logs"
+        
+        gh release upload ccache-storage ccache-release-dump.tar.gz current_stats.txt --repo "$REPO_NAME" --clobber
+        
+        rm -f ccache-release-dump.tar.gz current_stats.txt ${HOME}/old_stats.txt 2>/dev/null || true

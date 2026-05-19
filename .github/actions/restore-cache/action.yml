@@ -1,0 +1,26 @@
+name: 'Release Tar Restore Ccache'
+description: 'Aria2c se release tarball pull karke ccache restore karna'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🚀 Restore Ccache from Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p $HOME/.ccache
+        cd $HOME
+        
+        FILE="ccache-release-dump.tar.gz"
+        URL="https://github.com/${{ github.repository }}/releases/download/ccache-storage/$FILE"
+
+        
+        echo "📥 Pulling ccache tarball from repo release..."
+        if aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "$FILE" "$URL"; then
+          echo "📦 Extracting ccache components..."
+          tar -I pigz -xf "$FILE" -C $HOME/
+          rm -f "$FILE"
+          echo "✅ Ccache Restored Successfully!"
+        else
+          echo "⚠️ No previous Ccache found in Release, starting fresh bhai!"
+        fi

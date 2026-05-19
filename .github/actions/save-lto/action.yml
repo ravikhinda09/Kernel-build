@@ -1,0 +1,42 @@
+name: 'Release Tar Save ThinLTO'
+description: 'LTO cache ko compress karke direct lto-storage release mein push karna skip logic ke sath'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 💾 Save ThinLTO to Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        export GITHUB_TOKEN="${{ github.token }}"
+        REPO_NAME="${{ github.repository }}"
+        
+        # 1. Map current ThinLTO internal files to create structure hash
+        mkdir -p $HOME/.ldcache
+        find $HOME/.ldcache -type f -exec md5sum {} + | sort > $HOME/current_lto_map.txt || true
+        
+        # 2. Downstream tracking from remote release architecture
+        echo "🔍 Checking for previous LTO structural changes..."
+        if gh release download lto-storage --repo "$REPO_NAME" --pattern "current_lto_map.txt" -O $HOME/old_lto_map.txt 2>/dev/null; then
+          OLD_LTO_HASH=$(md5sum $HOME/old_lto_map.txt | cut -d' ' -f1)
+          NEW_LTO_HASH=$(md5sum $HOME/current_lto_map.txt | cut -d' ' -f1)
+          
+          if [ "$OLD_LTO_HASH" = "$NEW_LTO_HASH" ]; then
+            echo "✅ ThinLTO objects are identical! Skipping compress and upload to save time. 😎"
+            rm -f $HOME/current_lto_map.txt $HOME/old_lto_map.txt
+            exit 0
+          fi
+        fi
+
+        echo "🔄 New LTO components detected! Packaging folder..."
+        cd $HOME
+        tar -I 'pigz -1' -cf lto-release-dump.tar.gz .ldcache
+        
+        echo "🚀 Uploading updated ThinLTO asset stream..."
+        gh release view lto-storage --repo "$REPO_NAME" || \
+        gh release create lto-storage --repo "$REPO_NAME" --title "AURA Kernel ThinLTO Storage" --notes "Automated ThinLTO Object Storage Logs"
+        
+        gh release upload lto-storage lto-release-dump.tar.gz current_lto_map.txt --repo "$REPO_NAME" --clobber
+        
+        rm -f lto-release-dump.tar.gz current_lto_map.txt ${HOME}/old_lto_map.txt 2>/dev/null || true

@@ -1,0 +1,26 @@
+name: 'Release Tar Restore ThinLTO'
+description: 'Aria2c se release tarball pull karke ldcache/LTO restore karna'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🧠 Restore ThinLTO Cache from Release Tar
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p $HOME/.ldcache
+        cd $HOME
+        
+        FILE="lto-release-dump.tar.gz"
+        URL="https://github.com/${{ github.repository }}/releases/download/lto-storage/$FILE"
+
+        
+        echo "📥 Pulling ThinLTO tarball from repo release..."
+        if aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=error --summary-interval=0 -o "$FILE" "$URL"; then
+          echo "📦 Extracting LTO objects..."
+          tar -I pigz -xf "$FILE" -C $HOME/
+          rm -f "$FILE"
+          echo "✅ ThinLTO Cache Restored Successfully!"
+        else
+          echo "⚠️ No previous ThinLTO Cache found in Release, starting fresh bhai!"
+        fi

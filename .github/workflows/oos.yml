@@ -157,7 +157,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd $HOME/kernel-source
+          cd $HOME/kernel_platform/common
           cat >> arch/arm64/configs/gki_defconfig <<EOF
           CONFIG_LTO_CLANG_THIN=y
           CONFIG_KSU=y
@@ -187,7 +187,7 @@ jobs:
           echo "::group::Clean Up ABI Protected Exports"
           set -euo pipefail
           
-          cd "$HOME/kernel-source"
+          cd "$HOME/kernel_platform/common"
           
           # Check karega, agar mili toh dlt, nahi toh strict error!
           if ls android/abi_gki_protected_exports_* 1>/dev/null 2>&1; then
@@ -206,7 +206,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd $HOME/kernel-source
+          cd $HOME/kernel_platform
           curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ github.event.inputs.ksu_branch }}
           git submodule update --init --recursive
           cd KernelSU-Next/kernel
@@ -224,7 +224,7 @@ jobs:
           set -euo pipefail
           echo "::group::Apply SusFS"
           SUSFS_FOLDER="$HOME/susfs4ksu"
-          COMMON_KERNEL_FOLDER="$HOME/kernel-source"
+          COMMON_KERNEL_FOLDER="$HOME/kernel_platform/common"
           cp "$SUSFS_FOLDER/kernel_patches/fs/"* "$COMMON_KERNEL_FOLDER/fs/"
           cp "$SUSFS_FOLDER/kernel_patches/include/linux/"* "$COMMON_KERNEL_FOLDER/include/linux/"
           cd "$COMMON_KERNEL_FOLDER"
@@ -236,16 +236,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd $HOME/kernel-source
+          cd $HOME/kernel_platform
           wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash -s main
-          echo "CONFIG_BBG=y" >> arch/arm64/configs/gki_defconfig
-          sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
+          echo "CONFIG_BBG=y" >> common/arch/arm64/configs/gki_defconfig
+          sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' common/security/Kconfig
 
       - name: 🗼 BBR Networking
         shell: bash
         run: |
           set -euo pipefail
-          cat >> "$HOME/kernel-source/arch/arm64/configs/gki_defconfig" <<EOF
+          cat >> "$HOME/kernel_platform/common/arch/arm64/configs/gki_defconfig" <<EOF
           CONFIG_TCP_CONG_ADVANCED=y
           CONFIG_TCP_CONG_BBR=y
           CONFIG_NET_SCH_FQ=y
@@ -256,7 +256,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd $HOME/kernel-source
+          cd $HOME/kernel_platform/common
           export LDCACHE_DIR="$HOME/.ldcache"
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc)' >> ld-wrapper
@@ -315,7 +315,7 @@ jobs:
           set -euo pipefail
           cd $HOME
           ZIP_NAME="AURA-KSUN-SUSFS-$(date +%Y%m%d-%H%M).zip"
-          cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
+          cp kernel_platform/common/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           zip -r9 "../$ZIP_NAME" * -x .git README.md
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
@@ -325,7 +325,7 @@ jobs:
         run: |
           set -euo pipefail
           mv $HOME/$ZIP_NAME $GITHUB_WORKSPACE/
-          mv $HOME/kernel-source/build.log $GITHUB_WORKSPACE/
+          mv $HOME/kernel_platform/common/build.log $GITHUB_WORKSPACE/
 
       - name: 🚀 Publish Release
         uses: softprops/action-gh-release@v3

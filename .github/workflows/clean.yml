@@ -1,0 +1,83 @@
+# =========================================================
+# OnePlus OOS Pipeline - Core Actions & Workflows Cleanup
+# Maintainer : ravikhinda09
+# Purpose    : Deep cleans GitHub Actions Cache, Ccache & ThinLTO Logs
+# =========================================================
+
+name: 🧹 Pipeline Deep Cleanup
+
+on:
+  workflow_dispatch: # Isse tum jab chaho GitHub Actions tab me jaakar manually 1-click me run kar sakte ho
+
+permissions:
+  actions: write # CRITICAL: GitHub Server se active cache records delete karne ke liye permission zaroori hai
+
+jobs:
+  purge_pipeline:
+    name: 🧼 Execute Full System Cache Purge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout Repo Tree
+        uses: actions/checkout@v4
+
+      - name: 🗑️ Wipe GitHub Actions Core Caches (Server API Purge)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::group::Purging GitHub Actions Cache Records"
+          set +e # Agar cache pehle se khali ho toh script ko crash hone se rokega
+          
+          echo "📡 Fetching active cache allocations from GitHub servers..."
+          # Repo ke saare dynamic caches ki list nikalna
+          caches=$(gh api -X GET /repos/${{ github.repository }}/actions/caches --jq '.actions_caches[].id' 2>/dev/null || true)
+          
+          if [ -z "$caches" ]; then
+            echo "✨ GitHub actions cache layer pehle se hi ekdum khali hai!"
+          else
+            echo "🔍 Active cache records mil gaye hain! Wiping them out..."
+            for cache_id in $caches; do
+              echo "🗑️ Dropping Server Cache ID: $cache_id"
+              gh api -X DELETE /repos/${{ github.repository }}/actions/caches/$cache_id || true
+            done
+            echo "✅ GitHub actions storage registry completely wiped out!"
+          fi
+          echo "::endgroup::"
+
+      - name: 🧼 Local Run-time Environments Reset (Ccache & ThinLTO Paths)
+        shell: bash
+        run: |
+          echo "::group::Clearing Local System Buffers"
+          
+          # 🟢 Ccache aur ThinLTO cache direct directories flush karna
+          echo "🧹 Wiping compiler Ccache directory..."
+          rm -rf $HOME/.ccache/* || true
+          
+          echo "🧹 Wiping Linker ThinLTO (.ldcache) directory..."
+          rm -rf $HOME/.ldcache/* || true
+          
+          # 🟢 Workspace aur $HOME paths ke saare temporary cloned folders ko delete karna
+          echo "🧹 Flushing temporary action structures from $HOME..."
+          rm -rf $HOME/susfs4ksu || true
+          rm -rf $HOME/AnyKernel3 || true
+          rm -rf $HOME/kernel_platform || true
+          
+          # Workspace cleanup
+          echo "🧹 Scrubbing GitHub workspace logging artifacts..."
+          cd $GITHUB_WORKSPACE
+          rm -rf build.log || true
+          rm -rf *.zip || true
+          rm -rf out/ || true
+          
+          echo "✅ Runner machine structures are now 100% sterile!"
+          echo "::endgroup::"
+
+      - name: 📊 Final Disk Space Report
+        shell: bash
+        run: |
+          echo "======================================================="
+          echo "📊 POST-CLEANUP RUNNER FREE SPACE REPORT"
+          echo "======================================================="
+          df -h /
+          echo "======================================================="

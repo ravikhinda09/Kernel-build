@@ -1,0 +1,79 @@
+name: 'OnePlus OOS Kernel Source Fetcher'
+description: 'Initializes and parallel syncs official OnePlus OxygenOS kernel platform sources via Google Repo Tool'
+
+inputs:
+  branch:
+    description: 'Target manifest branch (e.g., oneplus/sm8650)'
+    required: true
+    default: 'oneplus/sm8650'
+  manifest:
+    description: 'Target manifest XML file (e.g., oneplus_ace5_b.xml)'
+    required: true
+    default: 'oneplus_ace5_b.xml'
+  local_dir:
+    description: 'Output directory name inside workspace'
+    required: false
+    default: 'kernel-source'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: ⚙️ Setup Git and Google Repo Environment
+      shell: bash
+      run: |
+        echo "::group::Configuring Repo Engine Core"
+        
+        # Git config block required by internal repo synchronization layouts
+        git config --global user.name "ravikhinda09"
+        git config --global user.email "ravikhinda09@users.noreply.github.com"
+        git config --global color.ui false
+        
+        # Installing localized standalone repo binaries
+        REPO_BIN="/usr/local/bin/repo"
+        if [ ! -x "$REPO_BIN" ]; then
+          echo "📥 Repo tool binary not found. Injecting from google storage api..."
+          sudo curl -s https://storage.googleapis.com/git-repo-downloads/repo -o "$REPO_BIN"
+          sudo chmod +x "$REPO_BIN"
+        fi
+        
+        echo "::endgroup::"
+
+    - name: 🚀 Executing Parallel Manifest Sync
+      shell: bash
+      run: |
+        echo "::group::Executing Repo Tree Synchronization"
+        
+        TARGET_PATH="$GITHUB_WORKSPACE/${{ inputs.local_dir }}"
+        mkdir -p "$TARGET_PATH"
+        cd "$TARGET_PATH"
+        
+        # 📡 Init phase matching script's logic (Handles URL overrides or direct local manifests)
+        if [[ "${{ inputs.manifest }}" == https://* ]]; then
+          mkdir -p .repo/manifests
+          echo "📥 Fetching dynamic configuration layout from remote url..."
+          curl -L "${{ inputs.manifest }}" -o .repo/manifests/temp_manifest.xml
+          /usr/local/bin/repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m temp_manifest.xml --depth=1
+        else
+          echo "📡 Mapping manifest tracking context to tree pointer..."
+          /usr/local/bin/repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b "${{ inputs.branch }}" -m "${{ inputs.manifest }}" --depth=1
+        fi
+        
+        # 📥 Force multi-threaded synchronized pipeline fetch
+        echo "⚡ Syncing structural layout layers (Parallel Max Threads)..."
+        success=false
+        for i in 1 2 3; do
+          if /usr/local/bin/repo sync -c --no-clone-bundle --no-tags --optimized-fetch -j$(nproc) --fail-fast -v; then
+            success=true
+            break
+          fi
+          echo "⚠️ Sync tracking attempt $i broke down; cooling down pipeline and retrying..."
+          sleep 30
+        done
+        
+        if [ "$success" = false ]; then
+          echo "❌ ERROR: Main core source download dropped down after max attempts!"
+          exit 1
+        fi
+        
+        echo "✅ Source tree successfully built and matched inside ${{ inputs.local_dir }}!"
+        echo "::endgroup::"

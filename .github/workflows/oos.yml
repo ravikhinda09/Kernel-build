@@ -4,7 +4,7 @@
 # Kernel     : AURA (SM8650)
 # =========================================================
 
-name: OnePlus 13R/ACE5 Kernel Realese
+name: OnePlus 13R/ACE5 Kernel Realese OOS
 
 on:
   workflow_dispatch:

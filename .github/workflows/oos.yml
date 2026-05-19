@@ -229,7 +229,7 @@ jobs:
           cp "$SUSFS_FOLDER/kernel_patches/include/linux/"* "$COMMON_KERNEL_FOLDER/include/linux/"
           cd "$COMMON_KERNEL_FOLDER"
           sed -i '/#include <linux\/cpufreq_times.h>/a #include <linux\/dma-buf.h>' ./fs/proc/base.c
-          patch -p1 < $SUSFS_FOLDER/kernel-patches/50_add_susfs_in_gki-android14-6.1.patch
+          patch -p1 < $SUSFS_FOLDER/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch
           echo "::endgroup::"
 
       - name: 🛡️ BBG LSM

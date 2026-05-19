@@ -293,7 +293,7 @@ jobs:
           mkdir -p "$OUT"
 
           # Parallel vendor configurations link route
-          make O="$OUT" gki_defconfig vendor/pineapple_GKI.config vendor/oplus/pineapple_GKI.config
+          make O="$OUT" gki_defconfig vendor/pineapple_GKI.config
           make O="$OUT" olddefconfig
 
           scripts/config --file "$OUT/.config" --set-str LOCALVERSION "-$ANDROID_VER-$UNAME"

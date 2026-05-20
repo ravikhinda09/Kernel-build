@@ -294,10 +294,12 @@ jobs:
 
           # Parallel vendor configurations link route
           make O="$OUT" gki_defconfig
-          make O="$OUT" olddefconfig
 
           scripts/config --file "$OUT/.config" --set-str LOCALVERSION "-$ANDROID_VER-$UNAME"
           scripts/config --file "$OUT/.config" -d LOCALVERSION_AUTO
+          sed -i 's/scm_version="$(scm_version --short)"/scm_version=""/' scripts/setlocalversion
+
+          make O="$OUT" olddefconfig
           make LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" O="$OUT" -j$(nproc) 2>&1 | tee build.log || exit 1
 
       - name: 🔍 Check Ccache Final Stats

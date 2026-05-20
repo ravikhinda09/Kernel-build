@@ -1,13 +1,22 @@
 # =========================================================
 # OnePlus 13R (AURA) Pipeline - Full Architecture Cleanup
 # Maintainer : ravikhinda09
-# Purpose    : Wipes Local Machine Junk, Resets Release Tarballs & Trims Ccache
+# Purpose    : Dynamic Cleanup with On-Demand Release Wipe
 # =========================================================
 
 name: 🧹 Pipeline Deep Cleanup
 
 on:
-  workflow_dispatch: # Manual 1-click execution via GitHub Actions Web UI
+  workflow_dispatch:
+    inputs:
+      clean_ccache:
+        description: 'Clean Ccache & ThinLTO Storage Releases?'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 permissions:
   contents: write # CRITICAL: Releases ke andar se storage artifacts delete karne ke liye zaroori hai
@@ -22,6 +31,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: 🗑️ Reset GitHub Storage Releases (Ccache & LTO Tarballs)
+        if: ${{ github.event.inputs.clean_ccache == 'true' }}
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,12 +65,18 @@ jobs:
           
           echo "::endgroup::"
 
+      - name: ⏭️ Skip Notification
+        if: ${{ github.event.inputs.clean_ccache == 'false' }}
+        shell: bash
+        run: |
+          echo "✨ Release Storage Cleanup was skipped by user option. Keeping older cache assets intact!"
+
       - name: 🧼 Local Run-time Environments Reset ($HOME Paths)
         shell: bash
         run: |
           echo "::group::Flushing Local Runner Buffers"
           
-          # 🟢 Tumhare layout ke mutabik $HOME directories ka permanent wipeout
+          # 🟢 Tumhare layout ke mutabik $HOME directories ka permanent wipeout (Ye hamesha chalega)
           echo "🧹 Clearing local execution directories..."
           rm -rf $HOME/.ccache/* || true
           rm -rf $HOME/.ldcache/* || true

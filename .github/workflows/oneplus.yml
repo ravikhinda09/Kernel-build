@@ -257,6 +257,8 @@ jobs:
         run: |
           set -euo pipefail
           cd $HOME/kernel_platform/common
+          : > .scmversion
+          
           export LDCACHE_DIR="$HOME/.ldcache"
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc)' >> ld-wrapper

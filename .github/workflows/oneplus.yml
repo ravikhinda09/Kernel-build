@@ -1,7 +1,7 @@
 # =========================================================
 # OnePlus 13R Kernel Build Workflow (LineageOS Base)
 # Maintainer : ravikhinda09
-# Kernel     : AURA (SM8650)
+# Kernel     : Aero (SM8650)
 # =========================================================
 
 name: OnePlus 13R/ACE5 Kernel Realese OOS
@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   build:
-    name: 🛠️ Build OnePlus 13R/ACE5 Kernel (AURA)
+    name: 🛠️ Build OnePlus 13R/ACE5 Kernel (Aero)
     runs-on: ubuntu-latest
 
     steps:
@@ -68,22 +68,19 @@ jobs:
           cd $HOME/clang-17
 
           FILE="clang-r487747c.tar.gz"
-          # 🚀 APNI REPO KA STORAGE PATH: Ab ye direct tumhari release se binary pull karega
           URL="https://github.com/${{ github.repository }}/releases/download/toolchain-cache/$FILE"
 
-          echo "📥 Downloading Toolchain from Personal Release Cache..."
+          echo "📥 Downloading Toolchain"
           aria2c -x16 -s16 -k1M \
           --file-allocation=none \
           --console-log-level=error \
           --summary-interval=0 \
           -o "$FILE" "$URL"
 
-          echo "📦 Extracting Toolchain Assets..."
+          echo "📦 Extracting Toolchain"
           tar -I pigz -xf "$FILE"
           rm -f "$FILE"
 
-          # 🎯 EXACT DIRECTORY ROUTING LOCK: 
-          # Kyunki humne extract kiya hai, binaries "clang-r487747c/bin" ke andar baithi hongi
           echo "$HOME/clang-17/clang-r487747c/bin" >> $GITHUB_PATH
           
           echo "🔍 Verifying localized compiler integration..."
@@ -104,16 +101,12 @@ jobs:
           set -euo pipefail
           echo "::group::Install Ccache"
 
-          # 1. Download official asset
           wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz
 
-          # 2. Extract without absolute path restrictions
           tar -xf ccache-4.13.6-linux-x86_64-glibc.tar.xz
 
-          # 3. FIX: Wildcard (*) use karke internal folder se file ko direct binaries location par copy karna
           sudo cp ccache-4.13.6-linux-x86_64-*/ccache /usr/local/bin/
 
-          # 4. Cleanup and Verify
           rm -rf ccache-4.13.6-linux-x86_64-*
           ccache --version
 
@@ -189,14 +182,12 @@ jobs:
           
           cd "$HOME/kernel_platform/common"
           
-          # Check karega, agar mili toh dlt, nahi toh strict error!
           if ls android/abi_gki_protected_exports_* 1>/dev/null 2>&1; then
-            echo "🔍 ABI Protected exports files mil gayi hain! Inko dlt kar raha hu..."
+            echo "🔍 ABI Protected exports files found"
             rm -f android/abi_gki_protected_exports_*
-            echo "✅ ABI Protected files completely saaf ho gayi!"
+            echo "✅ ABI Protected files removed"
           else
-            echo "❌ ERROR: Android folder me koi ABI Protected exports file NAHI mili!"
-            echo "Pipeline ko strict safety ke liye rokh raha hu..."
+            echo "❌ ERROR: files not found"
             exit 1
           fi
           
